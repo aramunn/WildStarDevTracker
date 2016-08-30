@@ -10,8 +10,13 @@ namespace ConsoleApplication1
 {
     class Program
     {
-        static void Main(string[] args) {
+        static void Main(string[] args)
+        {
+            bool isDebug = args.Length == 1 && args[0] == "debug";
+            if (isDebug) Console.WriteLine("Running in debug mode...");
+
             string seenPostIds = "seen_post_ids.txt";
+            int postsToSave = 200;
 
             WebClient client = new WebClient();
 
@@ -22,10 +27,13 @@ namespace ConsoleApplication1
             client.Encoding = Encoding.UTF8;
 
             Queue<string> divs = new Queue<string>();
-            Dictionary<string, bool> oldPosts = new Dictionary<string, bool>();
+            List<string> newPostsList = new List<string>();
+            Queue<string> seenPostsList = new Queue<string>();
+            HashSet<string> seenPostsSet = new HashSet<string>();
             if (File.Exists(seenPostIds)) {
                 foreach (string postId in File.ReadAllLines(seenPostIds)) {
-                    oldPosts[postId] = true;
+                    seenPostsList.Enqueue(postId);
+                    seenPostsSet.Add(postId);
                 }
                 File.Copy(seenPostIds, seenPostIds + ".bak", true);
             }
@@ -75,10 +83,10 @@ namespace ConsoleApplication1
                     totalPosts++;
                     string div = Regex.Match(html, search, RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline).Value;
                     html = Regex.Replace(html, search, "", RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline);
-                    if (oldPosts.ContainsKey(postId) == false) {
+                    if (seenPostsSet.Contains(postId) == false) {
                         divs.Enqueue(div);
-                        oldPosts[postId] = true;
                         newPosts++;
+                        newPostsList.Add(postId);
                     }
                 }
                 if (master == null) master = html;
@@ -88,14 +96,20 @@ namespace ConsoleApplication1
                     Console.WriteLine("Found " + newPosts + " new posts.");
                     Console.Write("Check next page? (y/n): ");
                 }
-            } while (page <= numPagesToCheck || Console.ReadLine() == "y");
+            } while (page <= numPagesToCheck || (isDebug && Console.ReadLine() == "y"));
             foreach (string div in divs) {
                 master = master.Insert(index, div);
             }
             master = Regex.Replace(master, @"tmpdiv\d+", "div");
             File.WriteAllText("output.html", master, Encoding.UTF8);
-            File.WriteAllLines(seenPostIds, oldPosts.Keys.ToArray());
-            if (newPosts > 0) System.Diagnostics.Process.Start(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", "output.html");
+            List<string> postsToWrite = new List<string>(newPostsList);
+            while (postsToWrite.Count < postsToSave && seenPostsList.Count > 0) postsToWrite.Add(seenPostsList.Dequeue());
+            File.WriteAllLines(seenPostIds, postsToWrite);
+            if (seenPostsList.Count > 0) {
+                Console.WriteLine("Dropped {0} post IDs", seenPostsList.Count);
+                if (isDebug) Console.ReadLine();
+            }
+            if (newPosts > 0) System.Diagnostics.Process.Start(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", '"' + Path.GetFullPath("output.html") + '"');
         }
     }
 }
