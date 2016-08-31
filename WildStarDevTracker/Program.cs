@@ -10,10 +10,23 @@ namespace ConsoleApplication1
 {
     class Program
     {
+        static StringBuilder debugInfo = new StringBuilder();
+        static bool isDebug = false;
+
+        static void Log(string message)
+        {
+            if (isDebug) Console.WriteLine(message);
+            else debugInfo.AppendLine(message);
+        }
+
         static void Main(string[] args)
         {
-            bool isDebug = args.Length == 1 && args[0] == "debug";
-            if (isDebug) Console.WriteLine("Running in debug mode...");
+            isDebug = args.Length == 1 && args[0] == "debug";
+
+            if (isDebug) {
+                Console.WriteLine("Running in debug mode...");
+                Console.ReadLine();
+            }
 
             string seenPostIds = "seen_post_ids.txt";
             int postsToSave = 200;
@@ -92,24 +105,25 @@ namespace ConsoleApplication1
                 if (master == null) master = html;
                 page++;
                 if (page > numPagesToCheck) {
-                    Console.WriteLine("Processed " + totalPosts + " total posts.");
-                    Console.WriteLine("Found " + newPosts + " new posts.");
-                    Console.Write("Check next page? (y/n): ");
+                    Log("Processed " + totalPosts + " total posts.");
+                    Log("Found " + newPosts + " new posts.");
+                    if (isDebug) Console.Write("Check next page? (y/n): ");
                 }
             } while (page <= numPagesToCheck || (isDebug && Console.ReadLine() == "y"));
             foreach (string div in divs) {
                 master = master.Insert(index, div);
             }
             master = Regex.Replace(master, @"tmpdiv\d+", "div");
-            File.WriteAllText("output.html", master, Encoding.UTF8);
             List<string> postsToWrite = new List<string>(newPostsList);
             while (postsToWrite.Count < postsToSave && seenPostsList.Count > 0) postsToWrite.Add(seenPostsList.Dequeue());
             File.WriteAllLines(seenPostIds, postsToWrite);
             if (seenPostsList.Count > 0) {
-                Console.WriteLine("Dropped {0} post IDs", seenPostsList.Count);
+                Log("Dropped " + seenPostsList.Count + " post IDs");
                 if (isDebug) Console.ReadLine();
             }
-            if (newPosts > 0) System.Diagnostics.Process.Start(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", '"' + Path.GetFullPath("output.html") + '"');
+            if (!isDebug) master = master.Insert(index, "<div><pre>" + debugInfo.ToString() + "</pre></div>");
+            File.WriteAllText("output.html", master, Encoding.UTF8);
+            System.Diagnostics.Process.Start(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", '"' + Path.GetFullPath("output.html") + '"');
         }
     }
 }
