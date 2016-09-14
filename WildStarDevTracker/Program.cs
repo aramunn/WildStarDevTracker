@@ -113,7 +113,6 @@ namespace ConsoleApplication1
             foreach (string div in divs) {
                 master = master.Insert(index, div);
             }
-            master = Regex.Replace(master, @"tmpdiv\d+", "div");
             List<string> postsToWrite = new List<string>(newPostsList);
             while (postsToWrite.Count < postsToSave && seenPostsList.Count > 0) postsToWrite.Add(seenPostsList.Dequeue());
             File.WriteAllLines(seenPostIds, postsToWrite);
@@ -122,6 +121,7 @@ namespace ConsoleApplication1
                 if (isDebug) Console.ReadLine();
             }
             if (!isDebug) master = master.Insert(index, "<div><pre>" + debugInfo.ToString() + "</pre></div>");
+            master = Regex.Replace(master, @"tmpdiv\d+", "div");
             File.WriteAllText("output.html", master, Encoding.UTF8);
             System.Diagnostics.Process.Start(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", '"' + Path.GetFullPath("output.html") + '"');
         }
